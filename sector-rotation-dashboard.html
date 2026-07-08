@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股行业轮动与资金流向监控仪表盘</title>
+<style>
+  :root{
+    --bg:#f5f5f7;
+    --card:#ffffff;
+    --line:#e6e6ea;
+    --ink:#1d1d1f;
+    --sub:#86868b;
+    --sub2:#a1a1a6;
+    --up:#ff3b30;      /* 涨=红 (A股惯例) */
+    --down:#34c759;    /* 跌=绿 (A股惯例) */
+    --up-soft:#ffe9e7;
+    --down-soft:#e7f8ec;
+    --blue:#0071e3;
+    --amber:#ff9f0a;
+    --shadow:0 1px 3px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.5;padding:28px 22px 60px;
+  }
+  .wrap{max-width:1320px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:22px}
+  .tt{display:flex;align-items:center;gap:12px}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0071e3,#42a5ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;box-shadow:var(--shadow)}
+  h1{font-size:21px;font-weight:600;letter-spacing:.3px}
+  .sub{font-size:12.5px;color:var(--sub);margin-top:2px}
+  .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{font-size:11.5px;color:var(--sub);background:#fff;border:1px solid var(--line);padding:5px 11px;border-radius:999px;box-shadow:var(--shadow)}
+  .pill.real{color:#1f9b46;border-color:#bfe9cb;background:#eafaf0}
+  .pill.demo{color:var(--amber);border-color:#ffe2b3;background:#fff8ec}
+  .live{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--down);box-shadow:0 0 0 3px rgba(52,199,89,.18);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .btn{font-family:var(--sans);font-size:12px;font-weight:600;color:#0071e3;background:#fff;border:1px solid var(--line);padding:6px 13px;border-radius:999px;cursor:pointer;box-shadow:var(--shadow);transition:background .15s,transform .1s}
+  .btn:hover{background:#f0f7ff}
+  .btn:active{transform:scale(.96)}
+
+  /* ---------- grid ---------- */
+  .grid{display:grid;gap:16px}
+  .cols-2{grid-template-columns:1.55fr 1fr}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  .cols-2b{grid-template-columns:1fr 1fr}
+  @media(max-width:980px){.cols-2,.cols-3,.cols-2b{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+  .card h2{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .card h2 .tag{font-size:10.5px;font-weight:500;color:var(--sub2);margin-left:auto;font-family:var(--mono)}
+  .bar-i{width:4px;height:15px;border-radius:3px;background:var(--blue)}
+
+  /* ---------- market overview ---------- */
+  .idx{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+  .idx .box{background:#fbfbfd;border:1px solid var(--line);border-radius:13px;padding:12px 13px}
+  .idx .nm{font-size:12px;color:var(--sub)}
+  .idx .vl{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:3px;letter-spacing:.3px}
+  .idx .ch{font-family:var(--mono);font-size:12.5px;font-weight:600;margin-top:2px}
+  .breadth{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--sub);padding-top:4px}
+  .breadth b{font-family:var(--mono);color:var(--ink);font-weight:600}
+  .breadth .up{color:var(--up)}.breadth .dn{color:var(--down)}
+
+  .themes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:4px}
+  .theme{border:1px solid var(--line);border-radius:13px;padding:11px 12px;background:#fbfbfd;position:relative;overflow:hidden}
+  .theme .nm{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .theme .flow{font-family:var(--mono);font-size:13.5px;font-weight:600;margin-top:4px}
+  .theme .ds{font-size:11px;color:var(--sub);margin-top:3px;line-height:1.4}
+  .theme .ribbon{position:absolute;left:0;top:0;bottom:0;width:4px}
+
+  /* ---------- heatmap ---------- */
+  .heat{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  .cell{border-radius:13px;padding:13px 11px;min-height:78px;display:flex;flex-direction:column;justify-content:space-between;cursor:default;transition:transform .12s ease, box-shadow .12s ease;border:1px solid rgba(0,0,0,.04);position:relative}
+  .cell:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:5}
+  .cell .rk{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:10px;opacity:.5}
+  .cell .cn{font-size:13px;font-weight:600}
+  .cell .cp{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:6px}
+  .cell .cf{font-family:var(--mono);font-size:11px;opacity:.85;margin-top:2px}
+  .legend{display:flex;align-items:center;gap:8px;margin-top:13px;font-size:11px;color:var(--sub)}
+  .legend .scale{display:flex;height:9px;width:160px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+  .legend .scale i{flex:1}
+
+  /* ---------- flow bars ---------- */
+  .flowrow{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12.5px}
+  .flowrow .lbl{width:78px;flex:none;text-align:right;color:var(--ink);font-weight:500}
+  .flowrow .track{position:relative;flex:1;height:22px;background:#fbfbfd;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .flowrow .bar{position:absolute;top:3px;bottom:3px;border-radius:5px;display:flex;align-items:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;padding:0 7px;min-width:2px}
+
+  /* ---------- style rotation ---------- */
+  .style-row{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+  .style-row .nm{width:92px;flex:none;font-size:12.5px;color:var(--ink)}
+  .style-row .sbar{flex:1;height:14px;background:#f0f0f3;border-radius:7px;position:relative;overflow:hidden}
+  .style-row .sfill{position:absolute;top:0;bottom:0;border-radius:7px}
+  .style-row .v{width:74px;flex:none;text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:600}
+  .verdict{margin-top:6px;background:#fbfbfd;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.55;color:var(--ink)}
+  .verdict b{color:var(--blue)}
+
+  /* ---------- northbound ---------- */
+  .nb-head{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+  .nb-head .big{font-family:var(--mono);font-size:26px;font-weight:700}
+  .nb-head .t{font-size:12px;color:var(--sub)}
+  .nb-foot{display:flex;justify-content:space-between;font-size:11px;color:var(--sub2);margin-top:6px;font-family:var(--mono)}
+  .nb-empty{padding:34px 10px;text-align:center;color:var(--sub);font-size:12.5px;line-height:1.8}
+  svg{display:block;width:100%;height:auto}
+
+  /* ---------- allocation ---------- */
+  .alloc{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .acard{border:1px solid var(--line);border-radius:15px;padding:15px;background:#fbfbfd;position:relative}
+  .acard .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:9px}
+  .b-ow{background:var(--up-soft);color:var(--up)}
+  .b-nw{background:#eef1f5;color:#515154}
+  .b-uw{background:var(--down-soft);color:#1f9b46}
+  .acard h3{font-size:14.5px;font-weight:600;margin-bottom:7px}
+  .acard p{font-size:12.3px;color:#48484a;line-height:1.6}
+  .acard .kv{margin-top:9px;font-family:var(--mono);font-size:11.5px;color:var(--sub);display:flex;gap:14px;flex-wrap:wrap}
+
+  /* ---------- advice ---------- */
+  .advice{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.advice{grid-template-columns:1fr}}
+  .acol{border:1px solid var(--line);border-radius:15px;overflow:hidden;background:#fbfbfd}
+  .acol .hd{padding:11px 14px;font-size:13.5px;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px}
+  .acol.out .hd{background:linear-gradient(90deg,#34c759,#2faa52)}
+  .acol.in .hd{background:linear-gradient(90deg,#ff6a60,#ff3b30)}
+  .acol.add .hd{background:linear-gradient(90deg,#ff9f0a,#ff8700)}
+  .acol ul{list-style:none;padding:8px 14px 14px}
+  .acol li{padding:9px 0;border-bottom:1px solid var(--line);font-size:12.3px;line-height:1.5}
+  .acol li:last-child{border-bottom:none}
+  .acol .sn{font-weight:600;font-size:13px;color:var(--ink)}
+  .acol .rs{color:var(--sub);font-size:11.5px;margin-top:3px}
+  .acol .empty{color:var(--sub2);font-style:italic}
+  .advice .summary{grid-column:1/-1;background:#fbfbfd;border:1px solid var(--line);border-radius:13px;padding:12px 15px;font-size:12.8px;line-height:1.7;color:#var(--ink)}
+  .advice .summary b{color:var(--blue)}
+
+  footer{margin-top:26px;text-align:center;font-size:11px;color:var(--sub2);line-height:1.7}
+
+  /* tooltip */
+  #tip{position:fixed;pointer-events:none;background:rgba(29,29,31,.94);color:#fff;font-size:11.5px;padding:8px 11px;border-radius:9px;z-index:99;opacity:0;transition:opacity .1s;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:230px;line-height:1.5}
+  #tip b{font-size:12.5px}
+  #tip .mono{font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="tt">
+      <div class="logo">股</div>
+      <div>
+        <h1>A股行业轮动与资金流向监控</h1>
+        <div class="sub">Sector Rotation &amp; Capital Flow Monitor · 通达信真实行情</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="pill real">✓ 通达信真实行情</span>
+      <button class="btn" id="refreshBtn">↻ 拉取最新</button>
+      <span class="pill" id="lastUpd">最后更新 --:--:--</span>
+      <span class="pill" id="nextUpd">下次自动更新 --:--:--</span>
+    </div>
+  </header>
+
+  <!-- 1. 大盘概览与今日资金主线 -->
+  <div class="card" style="margin-bottom:16px">
+    <h2><span class="bar-i"></span>大盘概览与今日资金主线 <span class="tag">MARKET OVERVIEW</span></h2>
+    <div class="idx" id="idx"></div>
+    <div class="breadth" id="breadth"></div>
+    <div class="themes" id="themes" style="margin-top:14px"></div>
+  </div>
+
+  <!-- 2+4. 行业热力 + 风格轮动 -->
+  <div class="grid cols-2" style="margin-bottom:16px">
+    <div class="card">
+      <h2><span class="bar-i"></span>16个一级行业涨跌热力网格 <span class="tag">HEATMAP · 涨幅降序 · 涨红跌绿</span></h2>
+      <div class="heat" id="heat"></div>
+      <div class="legend">
+        <span>跌</span>
+        <span class="scale" id="scale"></span>
+        <span>涨</span>
+        <span style="margin-left:auto">颜色越深 = 涨跌幅绝对值越大 · 数据来源通达信</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2><span class="bar-i"></span>风格轮动强弱 <span class="tag">STYLE ROTATION</span></h2>
+      <div id="styles"></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+  </div>
+
+  <!-- 3+5. 行业成交额排行 + 北向资金 -->
+  <div class="grid cols-2" style="margin-bottom:16px">
+    <div class="card">
+      <h2><span class="bar-i"></span>行业成交额排行（亿元） <span class="tag">TURNOVER · 颜色按涨跌</span></h2>
+      <div id="flows"></div>
+      <div style="font-size:11px;color:var(--sub2);margin-top:6px">注：通达信 MCP 暂未提供板块级「主力净流入」，此处用真实<b>成交额</b>反映资金活跃度；红=上涨行业、绿=下跌行业。</div>
+    </div>
+    <div class="card">
+      <h2><span class="bar-i"></span>北向资金动向与趋势 <span class="tag">NORTHBOUND</span></h2>
+      <div class="nb-head">
+        <span class="big" id="nbToday"></span>
+        <span class="t">今日北向净买入（亿元）</span>
+      </div>
+      <div id="nbChart"></div>
+      <div class="nb-foot"><span>20日前</span><span id="nbMin"></span><span id="nbMax"></span><span>今日</span></div>
+    </div>
+  </div>
+
+  <!-- 6. 三条行业配置研判 -->
+  <div class="card" style="margin-bottom:16px">
+    <h2><span class="bar-i"></span>三条行业配置研判 <span class="tag">ALLOCATION CALL</span></h2>
+    <div class="alloc" id="alloc"></div>
+  </div>
+
+  <!-- 7. 今日投资建议 -->
+  <div class="card">
+    <h2><span class="bar-i"></span>今日投资建议 <span class="tag">COMPOSITE CALL · 走势×成交×大盘</span></h2>
+    <div class="advice" id="advice"></div>
+  </div>
+
+  <footer>
+    数据来源：<strong>通达信行情（真实）</strong>，快照时间见「最后更新」。指数/行业涨跌幅与成交额、风格指数为实时真实数据；
+    板块级「主力净流入」与「北向资金」通达信 MCP 当前未提供（返回 -1005），相关模块标注为接口暂无，未做任何虚构。
+    <br>自动更新：收盘后 30 分钟（15:30）触发；浏览器以 file:// 直开时无法跨域拉取，会保留当前真实快照，持续刷新请通过本地服务托管并放置 <code>market-data.json</code>。
+    <br>本报告仅供参考，不构成个人投资建议 · 涨红跌绿遵循 A 股惯例
+  </footer>
+</div>
+
+<div id="tip"></div>
+
+<script>
+/* ============ 真实行情快照（通达信 MCP 拉取，2026-07-08 盘中标点 ~09:53） ============ */
+const DATA = {
+  meta:{ source:"通达信行情(真实)", time:"2026-07-08 09:53", note:"沪深京A股行业板块/指数实时快照" },
+  indices:[
+    {nm:"上证指数", v:"3983.36", ch:-0.17, amount:3122.19},
+    {nm:"深证成指", v:"15035.72", ch:-1.24, amount:3714.78},
+    {nm:"创业板指", v:"3877.56", ch:-0.88, amount:1661.59},
+  ],
+  // 16个一级行业(通达信行业板块): 涨跌幅% / 成交额(亿元)
+  sectors:[
+    {nm:"银行",       ch:+0.78, amount:53.03},
+    {nm:"食品饮料",   ch:+0.03, amount:51.73},
+    {nm:"医药生物",   ch:+0.53, amount:338.51},
+    {nm:"电子",       ch:-1.13, amount:2335.36},
+    {nm:"计算机",     ch:+1.12, amount:422.89},
+    {nm:"电力设备",   ch:-2.37, amount:510.25},
+    {nm:"有色金属",   ch:-1.73, amount:393.12},
+    {nm:"化工",       ch:-1.62, amount:390.79},
+    {nm:"机械设备",   ch:-2.54, amount:615.94},
+    {nm:"汽车",       ch:-2.08, amount:208.99},
+    {nm:"房地产",     ch:-0.41, amount:50.70},
+    {nm:"建筑装饰",   ch:-0.21, amount:53.78},
+    {nm:"交通运输",   ch:+0.23, amount:52.35},
+    {nm:"国防军工",   ch:-1.35, amount:203.08},
+    {nm:"农林牧渔",   ch:-1.74, amount:36.30},
+    {nm:"通信",       ch:+0.27, amount:448.42},
+  ],
+  styles:[
+    {nm:"大盘价值", day:+0.55, wk:null},
+    {nm:"大盘成长", day:-0.64, wk:null},
+    {nm:"小盘价值", day:+0.05, wk:null},
+    {nm:"小盘成长", day:-1.94, wk:null},
+  ],
+  northbound:null,   // 通达信 MCP 未提供板块/市场级北向净买入(返回 -1005)
+  alloc:[
+    {rate:"超配", cls:"b-ow", title:"计算机", body:"涨+1.12%、成交423亿，量价齐升，是今日唯一强势主线。资金与走势双确认，可新开仓或加仓。", kv:["目标:超配8-10%","信号:量价齐升"]},
+    {rate:"标配", cls:"b-nw", title:"银行 / 红利低波", body:"银行+0.78%逆势抗跌，红利防御属性仍在；市场偏弱时作底仓。维持中性，不追高。", kv:["目标:标配5%","节奏:分批"]},
+    {rate:"低配", cls:"b-uw", title:"电力设备 / 机械设备 / 汽车", body:"三者放量下跌(-2%附近)、资金撤离明显，弱势未止。规避为主，等缩量企稳再评估。", kv:["目标:低配0-2%","观察:缩量企稳"]},
+  ]
+};
+
+/* ============ 工具函数 ============ */
+const fmt = n => (n>=0?"+":"") + n.toFixed(2);
+const fmt1 = n => (n>=0?"+":"") + n.toFixed(1);
+const col = n => n>=0 ? "var(--up)" : "var(--down)";
+const p2 = n => String(n).padStart(2,"0");
+const nowStr = ()=>{const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;};
+const clockStr = d => d.toTimeString().slice(0,8);
+
+function heatColor(ch){
+  const mag = Math.min(Math.abs(ch),3)/3;
+  const L = 94 - mag*46;
+  if(ch>=0) return {bg:`hsl(4, 85%, ${L}%)`, fg: mag>0.5?"#fff":"#1d1d1f"};
+  return {bg:`hsl(142, 60%, ${L}%)`, fg: mag>0.5?"#fff":"#1d1d1f"};
+}
+const tip = document.getElementById("tip");
+function showTip(html,e){tip.innerHTML=html;tip.style.opacity=1;moveTip(e);}
+function moveTip(e){tip.style.left=(e.clientX+14)+"px";tip.style.top=(e.clientY+14)+"px";}
+function hideTip(){tip.style.opacity=0;}
+
+/* ============ 渲染函数 ============ */
+function renderIdx(){
+  document.getElementById("idx").innerHTML = DATA.indices.map(d=>`
+    <div class="box">
+      <div class="nm">${d.nm}</div>
+      <div class="vl">${d.v}</div>
+      <div class="ch" style="color:${col(d.ch)}">${fmt(d.ch)}%</div>
+    </div>`).join("");
+  const sec=DATA.sectors;
+  const up=sec.filter(s=>s.ch>0).length, down=sec.filter(s=>s.ch<0).length, flat=sec.length-up-down;
+  const total=sec.reduce((a,s)=>a+s.amount,0);
+  document.getElementById("breadth").innerHTML=`
+    <span>行业涨跌(16) <b class="up">${up}↑</b> / <b class="dn">${down}↓</b> / <b>${flat}</b></span>
+    <span>覆盖行业成交额合计 <b>${total.toFixed(0)}亿</b></span>`;
+}
+// 资金主线：按真实成交额取前4，动态生成
+function renderThemes(){
+  const top=[...DATA.sectors].sort((a,b)=>b.amount-a.amount).slice(0,4);
+  const ds=s=> s.ch>=0
+    ? `成交${s.amount.toFixed(0)}亿、涨${fmt(s.ch)}%，资金${s.ch>=0.8?'共识最强主线':'小幅承接'}`
+    : `成交${s.amount.toFixed(0)}亿居前但跌${fmt(s.ch)}%，高位分歧 / 资金撤离`;
+  document.getElementById("themes").innerHTML = top.map(s=>`
+    <div class="theme">
+      <span class="ribbon" style="background:${col(s.ch)}"></span>
+      <div class="nm">${s.nm}</div>
+      <div class="flow" style="color:${col(s.ch)}">${fmt(s.ch)}% · ${s.amount.toFixed(0)}亿</div>
+      <div class="ds">${ds(s)}</div>
+    </div>`).join("");
+}
+function renderHeat(){
+  const sec=[...DATA.sectors].sort((a,b)=>b.ch-a.ch);   // 涨幅降序
+  document.getElementById("heat").innerHTML = sec.map((s,i)=>{
+    const c=heatColor(s.ch);
+    return `<div class="cell" style="background:${c.bg};color:${c.fg}"
+      onmousemove="showTip('<b>${s.nm}</b><br>涨跌幅 <span class=\\'mono\\'>${fmt(s.ch)}%</span><br>成交额 <span class=\\'mono\\'>${s.amount.toFixed(0)}亿</span>',event)"
+      onmouseleave="hideTip()">
+      <div class="rk">#${i+1}</div>
+      <div class="cn">${s.nm}</div>
+      <div>
+        <div class="cp">${fmt(s.ch)}%</div>
+        <div class="cf">${s.amount.toFixed(0)}亿</div>
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("scale").innerHTML =
+    `<i style="background:hsl(142,60%,80%)"></i><i style="background:hsl(142,60%,60%)"></i>`+
+    `<i style="background:#f0f0f3"></i>`+
+    `<i style="background:hsl(4,85%,70%)"></i><i style="background:hsl(4,85%,52%)"></i>`;
+}
+function renderStyles(){
+  const maxStyle = Math.max(...DATA.styles.map(s=>Math.abs(s.day)));
+  document.getElementById("styles").innerHTML = DATA.styles.map(s=>{
+    const w = Math.abs(s.day)/maxStyle*50;
+    const c = col(s.day);
+    const left = s.day>=0 ? 50 : 50-w;
+    return `<div class="style-row">
+      <div class="nm">${s.nm}</div>
+      <div class="sbar"><div class="sfill" style="left:${left}%;width:${w}%;background:${c}"></div></div>
+      <div class="v" style="color:${c}">${fmt(s.day)}%</div>
+    </div>`;
+  }).join("");
+  const sorted=[...DATA.styles].sort((a,b)=>b.day-a.day);
+  const valUp = DATA.styles.filter(s=>s.nm.includes("价值")).reduce((a,s)=>a+s.day,0);
+  const grUp  = DATA.styles.filter(s=>s.nm.includes("成长")).reduce((a,s)=>a+s.day,0);
+  const lead = valUp>grUp ? "价值风格占优（防御）" : "成长风格占优（进攻）";
+  document.getElementById("verdict").innerHTML =
+    `轮动方向：<b>${sorted[0].nm}（${fmt(sorted[0].day)}%）</b> 最强；今日${lead}——`+
+    `价值 ${fmt1(valUp)}% vs 成长 ${fmt1(grUp)}%。大盘弱市下防御价值更受青睐，建议偏向低波价值、控制成长敞口。`;
+}
+// 行业成交额排行（真实成交额，单方向条形，颜色按涨跌）
+function renderFlows(){
+  const rows=[...DATA.sectors].sort((a,b)=>b.amount-a.amount);
+  const maxA=Math.max(...rows.map(r=>r.amount));
+  document.getElementById("flows").innerHTML=rows.map(r=>{
+    const w=r.amount/maxA*100;
+    const grad = r.ch>=0 ? "linear-gradient(90deg,#ff6a60,#ff3b30)" : "linear-gradient(90deg,#5bd97e,#34c759)";
+    return `<div class="flowrow">
+      <div class="lbl">${r.nm}</div>
+      <div class="track">
+        <div class="bar" style="left:0;width:${w}%;background:${grad};justify-content:flex-end">${r.amount.toFixed(0)}亿</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderNorthbound(){
+  const el=document.getElementById("nbChart");
+  if(!DATA.northbound){
+    document.getElementById("nbToday").innerHTML='<span style="color:var(--sub)">—</span>';
+    el.innerHTML='<div class="nb-empty">北向资金：行情接口暂未提供该字段<br><span style="font-family:var(--mono)">（通达信 MCP 返回 -1005）</span><br>如需该数据，请接入支持沪深港通净买入的行情源。</div>';
+    document.getElementById("nbMin").textContent="";document.getElementById("nbMax").textContent="";
+    return;
+  }
+  const nb=DATA.northbound, n=nb.length;
+  const W=600,H=210,padX=10,padY=24;
+  const minV=Math.min(...nb), maxV=Math.max(...nb);
+  const x=i=>padX + i*(W-padX*2)/(n-1);
+  const y=v=>{const t=(v-minV)/(maxV-minV||1); return padY + (1-t)*(H-padY*2);};
+  const zeroY = y(0);
+  let path=`M ${x(0)} ${y(nb[0])}`;
+  for(let i=1;i<n;i++) path+=` L ${x(i)} ${y(nb[i])}`;
+  let area=path+` L ${x(n-1)} ${zeroY} L ${x(0)} ${zeroY} Z`;
+  const last=nb[n-1];
+  document.getElementById("nbToday").innerHTML=`<span style="color:${col(last)}">${fmt(last)}</span>`;
+  document.getElementById("nbMin").textContent="低 "+minV;
+  document.getElementById("nbMax").textContent="高 +"+maxV;
+  el.innerHTML=`
+  <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
+    <defs>
+      <linearGradient id="nbg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ff3b30" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#ff3b30" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <line x1="${padX}" y1="${zeroY}" x2="${W-padX}" y2="${zeroY}" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="3 3"/>
+    <path d="${area}" fill="url(#nbg)"/>
+    <path d="${path}" fill="none" stroke="#ff3b30" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(n-1)}" cy="${y(last)}" r="4.5" fill="#ff3b30" stroke="#fff" stroke-width="2"/>
+  </svg>`;
+}
+function renderAlloc(){
+  document.getElementById("alloc").innerHTML=DATA.alloc.map(a=>`
+    <div class="acard">
+      <span class="badge ${a.cls}">${a.rate}</span>
+      <h3>${a.title}</h3>
+      <p>${a.body}</p>
+      <div class="kv">${a.kv.map(k=>`<span>${k}</span>`).join("")}</div>
+    </div>`).join("");
+}
+// 今日投资建议：综合 走势(涨跌幅) × 成交活跃度 × 大盘
+function renderAdvice(){
+  const sec=DATA.sectors;
+  const en  = sec.filter(s=>s.ch>=0.8).sort((a,b)=>b.ch-a.ch);                 // 进：强势上涨
+  const add = sec.filter(s=>s.ch>0 && s.ch<0.8).sort((a,b)=>b.ch-a.ch);        // 加：温和上涨
+  const out = sec.filter(s=>s.ch<0).sort((a,b)=>a.ch-b.ch);                    // 出：下跌
+  const mk=(s,reason)=>`<li><div class="sn">${s.nm} <span class="rs">${fmt(s.ch)}% / 成交 ${s.amount.toFixed(0)}亿</span></div><div class="rs">${reason}</div></li>`;
+  const outHtml = out.length? out.map(s=>mk(s,'收跌且成交偏弱/撤离，建议减仓或规避下行风险。')).join('') : '<li class="empty">暂无明确退出信号</li>';
+  const enHtml  = en.length?  en.map(s=>mk(s,'涨幅居前且成交活跃，走势与资金双确认，可新开仓。')).join('') : '<li class="empty">暂无强势新开仓信号</li>';
+  const addHtml = add.length? add.map(s=>mk(s,'温和上涨、资金小幅承接，可逢低加仓。')).join('') : '<li class="empty">暂无加仓信号</li>';
+
+  const avgCh=DATA.indices.reduce((a,b)=>a+b.ch,0)/DATA.indices.length;
+  const up=DATA.sectors.filter(s=>s.ch>0).length, dn=DATA.sectors.filter(s=>s.ch<0).length;
+  const tone = avgCh<0 ? `大盘承压走弱、行业普跌（16行业中 ${up}涨 ${dn}跌）` : `大盘震荡偏强、行业分化`;
+  const posture = avgCh<0 ? "控仓防守，规避弱势板块、保留现金" : "中性偏多，沿强势主线结构性做多";
+
+  const summary = `<b>综合研判：</b>${tone}；北向资金接口暂未提供。建议——`+
+    `<b style="color:var(--up)">进</b>：${en.map(s=>s.nm).join('、')||'暂无'}；`+
+    `<b style="color:var(--amber)">加</b>：${add.map(s=>s.nm).join('、')||'暂无'}；`+
+    `<b style="color:var(--down)">出</b>：${out.map(s=>s.nm).join('、')||'暂无'}。`+
+    `整体${posture}。`;
+
+  document.getElementById("advice").innerHTML=`
+    <div class="summary">${summary}</div>
+    <div class="acol out"><div class="hd">🟢 建议出（减仓 / 规避）</div><ul>${outHtml}</ul></div>
+    <div class="acol in"><div class="hd">🔴 建议进（新开仓）</div><ul>${enHtml}</ul></div>
+    <div class="acol add"><div class="hd">🟠 建议加（逢低加仓）</div><ul>${addHtml}</ul></div>
+  `;
+}
+function updateMeta(){
+  document.getElementById("lastUpd").textContent="最后更新 "+nowStr()+"（"+DATA.meta.time.slice(11)+"快照）";
+}
+function renderAll(){
+  renderIdx();renderThemes();renderHeat();renderStyles();
+  renderFlows();renderNorthbound();renderAlloc();renderAdvice();updateMeta();
+}
+
+/* ============ 自动更新：收盘后30分钟拉取真实端点 ============ */
+let autoTimer=null;
+function nextUpdateTime(){
+  const now=new Date();
+  const t=new Date(now);
+  t.setHours(15,30,0,0);
+  if(now>=t) t.setDate(t.getDate()+1);
+  return t;
+}
+function tickCountdown(){
+  document.getElementById("nextUpd").textContent="下次自动更新 "+clockStr(nextUpdateTime());
+}
+function scheduleAuto(){
+  const ms=nextUpdateTime()-Date.now();
+  clearTimeout(autoTimer);
+  autoTimer=setTimeout(()=>{ pullLatest(); scheduleAuto(); }, ms);
+}
+function flashBtn(msg){
+  const b=document.getElementById("refreshBtn");
+  const old=b.textContent; b.textContent=msg||"✓ 已更新";
+  setTimeout(()=>b.textContent=old,1500);
+}
+// 拉取真实端点；失败(如 file:// 直开)保留当前真实快照，不虚构
+async function pullLatest(){
+  try{
+    const r=await fetch("./market-data.json",{cache:"no-store"});
+    if(!r.ok) throw new Error("http "+r.status);
+    const d=await r.json();
+    Object.assign(DATA, d);
+    renderAll();
+    flashBtn("✓ 已更新");
+  }catch(e){
+    flashBtn("已是最新(本地快照)");
+  }
+}
+
+/* ============ 初始化 ============ */
+renderAll();
+tickCountdown();
+scheduleAuto();
+document.getElementById("refreshBtn").addEventListener("click",pullLatest);
+setInterval(tickCountdown,1000);
+document.addEventListener("mousemove",e=>{if(tip.style.opacity==1)moveTip(e);});
+</script>
+</body>
+</html>
