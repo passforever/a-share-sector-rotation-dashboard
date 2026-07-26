@@ -2,18 +2,24 @@
 
 单文件 HTML 仪表盘，浅色苹果终端风，A股惯例涨红跌绿。覆盖大盘概览、16 个一级行业涨跌热力网格、行业成交额排行、风格轮动强弱、三条行业配置研判、今日投资建议。
 
+## 在线访问
+**https://passforever.github.io/a-share-sector-rotation-dashboard/**
+
 ## 数据来源
 - 真实行情快照来自**通达信行情（MCP）**，快照时间见页面「最后更新」。
 - 指数/行业涨跌幅与成交额、风格指数为真实数据。
 - 板块级「主力净流入」与「北向资金」通达信 MCP 当前未提供（返回 -1005），相关模块标注为接口暂无，未做任何虚构。
 
 ## 使用方式
-- **直接打开**：双击 `sector-rotation-dashboard.html` 即可查看（file:// 直开时保留内置真实快照）。
+- **在线访问**：直接打开上方 GitHub Pages 链接即可。
+- **本地打开**：双击 `index.html` 或 `sector-rotation-dashboard.html`（file:// 直开时保留内置真实快照）。
 - **持续刷新**：用本地静态服务托管本目录（HTML 与 `market-data.json` 同目录），收盘后 30 分钟（15:30）会自动 `fetch('./market-data.json')` 拉取最新快照。
 
 ## 文件
+- `index.html` — GitHub Pages 默认入口（与主仪表盘内容一致）。
 - `sector-rotation-dashboard.html` — 主仪表盘（单文件，无外部依赖）。
 - `market-data.json` — 真实行情快照导出，供自动更新拉取。
+- `.nojekyll` — 禁用 GitHub Pages 的 Jekyll 渲染，确保 HTML 原样输出。
 
 ## 免责声明
 本报告仅供参考，不构成个人投资建议。涨红跌绿遵循 A 股惯例。
