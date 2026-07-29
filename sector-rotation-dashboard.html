@@ -102,14 +102,6 @@
   .verdict{margin-top:6px;background:#fbfbfd;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:12.5px;line-height:1.55;color:var(--ink)}
   .verdict b{color:var(--blue)}
 
-  /* ---------- northbound ---------- */
-  .nb-head{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
-  .nb-head .big{font-family:var(--mono);font-size:26px;font-weight:700}
-  .nb-head .t{font-size:12px;color:var(--sub)}
-  .nb-foot{display:flex;justify-content:space-between;font-size:11px;color:var(--sub2);margin-top:6px;font-family:var(--mono)}
-  .nb-empty{padding:34px 10px;text-align:center;color:var(--sub);font-size:12.5px;line-height:1.8}
-  svg{display:block;width:100%;height:auto}
-
   /* ---------- allocation ---------- */
   .alloc{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   .acard{border:1px solid var(--line);border-radius:15px;padding:15px;background:#fbfbfd;position:relative}
@@ -161,7 +153,7 @@
       <span class="pill real">✓ 通达信真实行情</span>
       <button class="btn" id="refreshBtn">↻ 拉取最新</button>
       <span class="pill" id="lastUpd">最后更新 --:--:--</span>
-      <span class="pill" id="nextUpd">下次自动更新 --:--:--</span>
+      <span class="pill" id="nextUpd">���次自动更新 --:--:--</span>
     </div>
   </header>
 
@@ -192,40 +184,28 @@
     </div>
   </div>
 
-  <!-- 3+5. 行业成交额排行 + 北向资金 -->
-  <div class="grid cols-2" style="margin-bottom:16px">
-    <div class="card">
-      <h2><span class="bar-i"></span>行业成交额排行（亿元） <span class="tag">TURNOVER · 颜色按涨跌</span></h2>
-      <div id="flows"></div>
-      <div style="font-size:11px;color:var(--sub2);margin-top:6px">注：通达信 MCP 暂未提供板块级「主力净流入」，此处用真实<b>成交额</b>反映资金活跃度；红=上涨行业、绿=下跌行业。</div>
-    </div>
-    <div class="card">
-      <h2><span class="bar-i"></span>北向资金动向与趋势 <span class="tag">NORTHBOUND</span></h2>
-      <div class="nb-head">
-        <span class="big" id="nbToday"></span>
-        <span class="t">今日北向净买入（亿元）</span>
-      </div>
-      <div id="nbChart"></div>
-      <div class="nb-foot"><span>20日前</span><span id="nbMin"></span><span id="nbMax"></span><span>今日</span></div>
-    </div>
+  <!-- 3. 行业成交额排行 -->
+  <div class="card" style="margin-bottom:16px">
+    <h2><span class="bar-i"></span>行业成交额排行（亿元） <span class="tag">TURNOVER · 颜色按涨跌</span></h2>
+    <div id="flows"></div>
+    <div style="font-size:11px;color:var(--sub2);margin-top:6px">注：用真实<b>成交额</b>反映资金活跃度，颜色按涨跌；红=上涨行业、绿=下跌行业。</div>
   </div>
 
-  <!-- 6. 三条行业配置研判 -->
+  <!-- 4. 三条行业配置研判 -->
   <div class="card" style="margin-bottom:16px">
     <h2><span class="bar-i"></span>三条行业配置研判 <span class="tag">ALLOCATION CALL</span></h2>
     <div class="alloc" id="alloc"></div>
   </div>
 
-  <!-- 7. 今日投资建议 -->
+  <!-- 5. 今日投资建议 -->
   <div class="card">
     <h2><span class="bar-i"></span>今日投资建议 <span class="tag">COMPOSITE CALL · 走势×成交×大盘</span></h2>
     <div class="advice" id="advice"></div>
   </div>
 
   <footer>
-    数据来源：<strong>通达信行情（真实）</strong>，快照时间见「最后更新」。指数/行业涨跌幅与成交额、风格指数为实时真实数据；
-    板块级「主力净流入」与「北向资金」通达信 MCP 当前未提供（返回 -1005），相关模块标注为接口暂无，未做任何虚构。
-    <br>自动更新：收盘后 30 分钟（15:30）触发；浏览器以 file:// 直开时无法跨域拉取，会保留当前真实快照，持续刷新请通过本地服务托管并放置 <code>market-data.json</code>。
+    数据来源：<strong>通达信行情（真实）</strong>，快照时间见「最后更新」。指数/行业涨跌幅与成交额、风格指数为实时真实数据。
+    <br>数据由通达信 MCP 在每个交易日盘后手动拉取并推送至 GitHub Pages 更新。本站为静态站点，不提供实时推送。
     <br>本报告仅供参考，不构成个人投资建议 · 涨红跌绿遵循 A 股惯例
   </footer>
 </div>
@@ -233,44 +213,42 @@
 <div id="tip"></div>
 
 <script>
-/* ============ 真实行情快照（通达信 MCP 拉取，2026-07-24 收盘） ============ */
+/* ============ 真实行情快照（通达信 MCP 拉取，2026-07-29 收盘） ============ */
 const DATA = {
-  meta:{ source:"通达信行情(真实)", time:"2026-07-24 15:00", note:"沪深京A股行业板块/指数收盘快照" },
+  meta:{ source:"通达信行情(真实)", time:"2026-07-29 15:00", note:"全市场普涨反弹日 · 15/16行业收红" },
   indices:[
-    {nm:"上证指数", v:"3814.20", ch:-1.61, amount:9153.66},
-    {nm:"深证成指", v:"13774.68", ch:-2.47, amount:10157.74},
-    {nm:"创业板指", v:"3480.87", ch:-2.65, amount:4492.92},
+    {nm:"上证指数", v:"3828.47", ch:+0.40, amount:10874.08},
+    {nm:"深证成指", v:"13658.44", ch:+1.10, amount:12091.71},
+    {nm:"创业板指", v:"3378.70", ch:+1.55, amount:5691.65},
   ],
-  // 16个一级行业(通达信行业板块): 涨跌幅% / 成交额(亿元)
   sectors:[
-    {nm:"银行",       ch:+0.59, amount:275.41},
-    {nm:"食品饮料",   ch:-0.98, amount:250.45},
-    {nm:"医药生物",   ch:-3.49, amount:1158.99},
-    {nm:"电子",       ch:-0.96, amount:5818.46},
-    {nm:"计算机",     ch:-3.77, amount:1146.43},
-    {nm:"电力设备",   ch:-2.60, amount:1321.60},
-    {nm:"有色金属",   ch:-4.75, amount:1220.24},
-    {nm:"化工",       ch:-2.72, amount:1121.31},
-    {nm:"机械设备",   ch:-1.96, amount:1271.68},
-    {nm:"汽车",       ch:-2.20, amount:450.54},
-    {nm:"房地产",     ch:-2.63, amount:117.37},
-    {nm:"建筑装饰",   ch:-1.87, amount:190.12},
-    {nm:"交通运输",   ch:-1.79, amount:48.79},
-    {nm:"国防军工",   ch:-1.75, amount:513.69},
-    {nm:"农林牧渔",   ch:-2.77, amount:118.67},
-    {nm:"通信",       ch:-3.26, amount:1382.81},
+    {nm:"交通运输",   ch:+2.27, amount:58.09},
+    {nm:"房地产",     ch:+1.93, amount:178.34},
+    {nm:"汽车",       ch:+1.88, amount:640.75},
+    {nm:"有色金属",   ch:+1.83, amount:1079.08},
+    {nm:"国防军工",   ch:+1.79, amount:511.56},
+    {nm:"电力设备",   ch:+1.51, amount:1513.68},
+    {nm:"食品饮料",   ch:+1.32, amount:467.54},
+    {nm:"医药生物",   ch:+1.19, amount:1152.50},
+    {nm:"化工",       ch:+1.04, amount:1231.75},
+    {nm:"建筑装饰",   ch:+0.94, amount:216.75},
+    {nm:"农林牧渔",   ch:+0.66, amount:126.92},
+    {nm:"通信",       ch:+0.62, amount:1812.17},
+    {nm:"机械设备",   ch:+0.54, amount:1585.06},
+    {nm:"计算机",     ch:-0.23, amount:1293.23},
+    {nm:"银行",       ch:-0.24, amount:356.16},
+    {nm:"电子",       ch:-0.86, amount:7318.97},
   ],
   styles:[
-    {nm:"大盘价值", day:-0.46, wk:null},
-    {nm:"大盘成长", day:-1.83, wk:null},
-    {nm:"小盘价值", day:-2.90, wk:null},
-    {nm:"小盘成长", day:-2.35, wk:null},
+    {nm:"小盘价值", day:+2.34, wk:null},
+    {nm:"小盘成长", day:+1.45, wk:null},
+    {nm:"大盘成长", day:+1.07, wk:null},
+    {nm:"大盘价值", day:+0.59, wk:null},
   ],
-  northbound:null,   // 通达信 MCP 未提供板块/市场级北向净买入(返回 -1005)
   alloc:[
-    {rate:"超配", cls:"b-ow", title:"银行", body:"大盘全线回调中唯一收红(+0.59%)，红利防御属性凸显，成交275亿稳健，底仓配置首选。", kv:["目标:超配10-12%","信号:逆势抗跌"]},
-    {rate:"标配", cls:"b-nw", title:"食品饮料 / 电子", body:"食品饮料-0.98%相对抗跌，消费防御属性仍在；电子-0.96%但成交5818亿为全市场最大，分歧中或有承接。维持中性。", kv:["目标:标配5-8%","节奏:分批"]},
-    {rate:"低配", cls:"b-uw", title:"有色金属 / 计算机 / 通信", body:"有色-4.75%领跌、计算机-3.77%、通信-3.26%，三者放量下杀资金撤离明显，弱势未止。规避为主，等缩量企稳再评估。", kv:["目标:低配0-2%","观察:缩量企稳"]},
+    {rate:"超配", cls:"b-ow", title:"交通运输 / 国防军工 / 房地产", body:"交通运输+2.27%领涨两市、房地产+1.93%、国防军工+1.79%，量价配合、资金共识强，短期动量延续概率大。", kv:["目标:超配10-12%","信号:领涨动量"]},
+    {rate:"标配", cls:"b-nw", title:"电力设备 / 汽车 / 有色 / 机械设备", body:"四板块同步收涨，成交活跃（电力设备1514亿、机械设备1585亿），属广义顺周期共振，维持标配、顺势持有。", kv:["目标:标配5-8%","节奏:顺势持有"]},
+    {rate:"低配", cls:"b-uw", title:"银行 / 电子", body:"银行-0.24%逆市收跌，防御属性在反弹日失去吸引力；电子-0.86%成交7319亿全市场最大但收跌，高位放量分歧未止。低配等企稳。", kv:["目标:低配0-2%","等缩量企稳"]},
   ]
 };
 
@@ -308,7 +286,6 @@ function renderIdx(){
     <span>行业涨跌(16) <b class="up">${up}↑</b> / <b class="dn">${down}↓</b> / <b>${flat}</b></span>
     <span>覆盖行业成交额合计 <b>${total.toFixed(0)}亿</b></span>`;
 }
-// 资金主线：按真实成交额取前4，动态生成
 function renderThemes(){
   const top=[...DATA.sectors].sort((a,b)=>b.amount-a.amount).slice(0,4);
   const ds=s=> s.ch>=0
@@ -323,7 +300,7 @@ function renderThemes(){
     </div>`).join("");
 }
 function renderHeat(){
-  const sec=[...DATA.sectors].sort((a,b)=>b.ch-a.ch);   // 涨幅降序
+  const sec=[...DATA.sectors].sort((a,b)=>b.ch-a.ch);
   document.getElementById("heat").innerHTML = sec.map((s,i)=>{
     const c=heatColor(s.ch);
     return `<div class="cell" style="background:${c.bg};color:${c.fg}"
@@ -360,9 +337,8 @@ function renderStyles(){
   const lead = valUp>grUp ? "价值风格占优（防御）" : "成长风格占优（进攻）";
   document.getElementById("verdict").innerHTML =
     `轮动方向：<b>${sorted[0].nm}（${fmt(sorted[0].day)}%）</b> 最强；今日${lead}——`+
-    `价值 ${fmt1(valUp)}% vs 成长 ${fmt1(grUp)}%。大盘弱市下防御价值更受青睐，建议偏向低波价值、控制成长敞口。`;
+    `价值合计 ${fmt1(valUp)}% vs 成长合计 ${fmt1(grUp)}%。市场普涨反弹，小盘领涨、价值略强于成长，建议均衡配置、侧重小盘弹性。`;
 }
-// 行业成交额排行（真实成交额，单方向条形，颜色按涨跌）
 function renderFlows(){
   const rows=[...DATA.sectors].sort((a,b)=>b.amount-a.amount);
   const maxA=Math.max(...rows.map(r=>r.amount));
@@ -377,41 +353,6 @@ function renderFlows(){
     </div>`;
   }).join("");
 }
-function renderNorthbound(){
-  const el=document.getElementById("nbChart");
-  if(!DATA.northbound){
-    document.getElementById("nbToday").innerHTML='<span style="color:var(--sub)">—</span>';
-    el.innerHTML='<div class="nb-empty">北向资金：行情接口暂未提供该字段<br><span style="font-family:var(--mono)">（通达信 MCP 返回 -1005）</span><br>如需该数据，请接入支持沪深港通净买入的行情源。</div>';
-    document.getElementById("nbMin").textContent="";document.getElementById("nbMax").textContent="";
-    return;
-  }
-  const nb=DATA.northbound, n=nb.length;
-  const W=600,H=210,padX=10,padY=24;
-  const minV=Math.min(...nb), maxV=Math.max(...nb);
-  const x=i=>padX + i*(W-padX*2)/(n-1);
-  const y=v=>{const t=(v-minV)/(maxV-minV||1); return padY + (1-t)*(H-padY*2);};
-  const zeroY = y(0);
-  let path=`M ${x(0)} ${y(nb[0])}`;
-  for(let i=1;i<n;i++) path+=` L ${x(i)} ${y(nb[i])}`;
-  let area=path+` L ${x(n-1)} ${zeroY} L ${x(0)} ${zeroY} Z`;
-  const last=nb[n-1];
-  document.getElementById("nbToday").innerHTML=`<span style="color:${col(last)}">${fmt(last)}</span>`;
-  document.getElementById("nbMin").textContent="低 "+minV;
-  document.getElementById("nbMax").textContent="高 +"+maxV;
-  el.innerHTML=`
-  <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
-    <defs>
-      <linearGradient id="nbg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#ff3b30" stop-opacity="0.22"/>
-        <stop offset="100%" stop-color="#ff3b30" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <line x1="${padX}" y1="${zeroY}" x2="${W-padX}" y2="${zeroY}" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="3 3"/>
-    <path d="${area}" fill="url(#nbg)"/>
-    <path d="${path}" fill="none" stroke="#ff3b30" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${x(n-1)}" cy="${y(last)}" r="4.5" fill="#ff3b30" stroke="#fff" stroke-width="2"/>
-  </svg>`;
-}
 function renderAlloc(){
   document.getElementById("alloc").innerHTML=DATA.alloc.map(a=>`
     <div class="acard">
@@ -421,23 +362,22 @@ function renderAlloc(){
       <div class="kv">${a.kv.map(k=>`<span>${k}</span>`).join("")}</div>
     </div>`).join("");
 }
-// 今日投资建议：综合 走势(涨跌幅) × 成交活跃度 × 大盘
 function renderAdvice(){
   const sec=DATA.sectors;
-  const en  = sec.filter(s=>s.ch>=0.8).sort((a,b)=>b.ch-a.ch);                 // 进：强势上涨
-  const add = sec.filter(s=>s.ch>0 && s.ch<0.8).sort((a,b)=>b.ch-a.ch);        // 加：温和上涨
-  const out = sec.filter(s=>s.ch<0).sort((a,b)=>a.ch-b.ch);                    // 出：下跌
+  const en  = sec.filter(s=>s.ch>=0.8).sort((a,b)=>b.ch-a.ch);
+  const add = sec.filter(s=>s.ch>0 && s.ch<0.8).sort((a,b)=>b.ch-a.ch);
+  const out = sec.filter(s=>s.ch<0).sort((a,b)=>a.ch-b.ch);
   const mk=(s,reason)=>`<li><div class="sn">${s.nm} <span class="rs">${fmt(s.ch)}% / 成交 ${s.amount.toFixed(0)}亿</span></div><div class="rs">${reason}</div></li>`;
-  const outHtml = out.length? out.map(s=>mk(s,'收跌且成交偏弱/撤离，建议减仓或规避下行风险。')).join('') : '<li class="empty">暂无明确退出信号</li>';
+  const outHtml = out.length? out.map(s=>mk(s,'收跌或成交偏弱，建议减仓/规避。')).join('') : '<li class="empty">暂无明确退出信号</li>';
   const enHtml  = en.length?  en.map(s=>mk(s,'涨幅居前且成交活跃，走势与资金双确认，可新开仓。')).join('') : '<li class="empty">暂无强势新开仓信号</li>';
   const addHtml = add.length? add.map(s=>mk(s,'温和上涨、资金小幅承接，可逢低加仓。')).join('') : '<li class="empty">暂无加仓信号</li>';
 
   const avgCh=DATA.indices.reduce((a,b)=>a+b.ch,0)/DATA.indices.length;
   const up=DATA.sectors.filter(s=>s.ch>0).length, dn=DATA.sectors.filter(s=>s.ch<0).length;
-  const tone = avgCh<0 ? `大盘承压走弱、行业普跌（16行业中 ${up}涨 ${dn}跌）` : `大盘震荡偏强、行业分化`;
-  const posture = avgCh<0 ? "控仓防守，规避弱势板块、保留现金" : "中性偏多，沿强势主线结构性做多";
+  const tone = avgCh>0 ? `大盘普涨反弹、行业共振向上（16行业中 ${up}涨 ${dn}跌）` : `大盘承压、行业分化`;
+  const posture = avgCh>0 ? "顺势而为，沿强势主线积极做多，保留部分现金应对波动" : "控仓防守，规避弱势板块、保留现金";
 
-  const summary = `<b>综合研判：</b>${tone}；北向资金接口暂未提供。建议——`+
+  const summary = `<b>综合研判：</b>${tone}。建议——`+
     `<b style="color:var(--up)">进</b>：${en.map(s=>s.nm).join('、')||'暂无'}；`+
     `<b style="color:var(--amber)">加</b>：${add.map(s=>s.nm).join('、')||'暂无'}；`+
     `<b style="color:var(--down)">出</b>：${out.map(s=>s.nm).join('、')||'暂无'}。`+
@@ -455,10 +395,10 @@ function updateMeta(){
 }
 function renderAll(){
   renderIdx();renderThemes();renderHeat();renderStyles();
-  renderFlows();renderNorthbound();renderAlloc();renderAdvice();updateMeta();
+  renderFlows();renderAlloc();renderAdvice();updateMeta();
 }
 
-/* ============ 自动更新：收盘后30分钟拉取真实端点 ============ */
+/* ============ 自动更新 ============ */
 let autoTimer=null;
 function nextUpdateTime(){
   const now=new Date();
@@ -480,7 +420,6 @@ function flashBtn(msg){
   const old=b.textContent; b.textContent=msg||"✓ 已更新";
   setTimeout(()=>b.textContent=old,1500);
 }
-// 拉取真实端点；失败(如 file:// 直开)保留当前真实快照，不虚构
 async function pullLatest(){
   try{
     const r=await fetch("./market-data.json",{cache:"no-store"});
@@ -490,7 +429,7 @@ async function pullLatest(){
     renderAll();
     flashBtn("✓ 已更新");
   }catch(e){
-    flashBtn("已是最新(本地快照)");
+    flashBtn("已是最新("+DATA.meta.time.slice(5,10)+"快照)");
   }
 }
 
